@@ -31,8 +31,8 @@ const formatLine = (label: string, value: string) => {
 };
 
 function resolveSystemdUnitPathForName(
-  env: Record<string, string | undefined>,
-  name: string,
+    env: Record<string, string | undefined>,
+    name: string,
 ): string {
   const home = toPosixPath(resolveHomeDir(env));
   return path.posix.join(home, ".config", "systemd", "user", `${name}.service`);
@@ -60,7 +60,7 @@ export type { SystemdUserLingerStatus };
 // Unit file parsing/rendering: see systemd-unit.ts
 
 export async function readSystemdServiceExecStart(
-  env: Record<string, string | undefined>,
+    env: Record<string, string | undefined>,
 ): Promise<{
   programArguments: string[];
   workingDirectory?: string;
@@ -146,7 +146,7 @@ export function parseSystemdShow(output: string): SystemdServiceInfo {
 }
 
 async function execSystemctl(
-  args: string[],
+    args: string[],
 ): Promise<{ stdout: string; stderr: string; code: number }> {
   try {
     const { stdout, stderr } = await execFileAsync("systemctl", args, {
@@ -167,7 +167,7 @@ async function execSystemctl(
     return {
       stdout: typeof e.stdout === "string" ? e.stdout : "",
       stderr:
-        typeof e.stderr === "string" ? e.stderr : typeof e.message === "string" ? e.message : "",
+          typeof e.stderr === "string" ? e.stderr : typeof e.message === "string" ? e.message : "",
       code: typeof e.code === "number" ? e.code : 1,
     };
   }
@@ -213,13 +213,13 @@ async function assertSystemdAvailable() {
 }
 
 export async function installSystemdService({
-  env,
-  stdout,
-  programArguments,
-  workingDirectory,
-  environment,
-  description,
-}: {
+                                              env,
+                                              stdout,
+                                              programArguments,
+                                              workingDirectory,
+                                              environment,
+                                              description,
+                                            }: {
   env: Record<string, string | undefined>;
   stdout: NodeJS.WritableStream;
   programArguments: string[];
@@ -269,9 +269,9 @@ export async function installSystemdService({
 }
 
 export async function uninstallSystemdService({
-  env,
-  stdout,
-}: {
+                                                env,
+                                                stdout,
+                                              }: {
   env: Record<string, string | undefined>;
   stdout: NodeJS.WritableStream;
 }): Promise<void> {
@@ -290,9 +290,9 @@ export async function uninstallSystemdService({
 }
 
 export async function stopSystemdService({
-  stdout,
-  env,
-}: {
+                                           stdout,
+                                           env,
+                                         }: {
   stdout: NodeJS.WritableStream;
   env?: Record<string, string | undefined>;
 }): Promise<void> {
@@ -307,9 +307,9 @@ export async function stopSystemdService({
 }
 
 export async function restartSystemdService({
-  stdout,
-  env,
-}: {
+                                              stdout,
+                                              env,
+                                            }: {
   stdout: NodeJS.WritableStream;
   env?: Record<string, string | undefined>;
 }): Promise<void> {
@@ -334,7 +334,7 @@ export async function isSystemdServiceEnabled(args: {
 }
 
 export async function readSystemdServiceRuntime(
-  env: Record<string, string | undefined> = process.env as Record<string, string | undefined>,
+    env: Record<string, string | undefined> = process.env as Record<string, string | undefined>,
 ): Promise<GatewayServiceRuntime> {
   try {
     await assertSystemdAvailable();
@@ -392,7 +392,7 @@ async function isSystemctlAvailable(): Promise<boolean> {
 }
 
 export async function findLegacySystemdUnits(
-  env: Record<string, string | undefined>,
+    env: Record<string, string | undefined>,
 ): Promise<LegacySystemdUnit[]> {
   const results: LegacySystemdUnit[] = [];
   const systemctlAvailable = await isSystemctlAvailable();
@@ -418,9 +418,9 @@ export async function findLegacySystemdUnits(
 }
 
 export async function uninstallLegacySystemdUnits({
-  env,
-  stdout,
-}: {
+                                                    env,
+                                                    stdout,
+                                                  }: {
   env: Record<string, string | undefined>;
   stdout: NodeJS.WritableStream;
 }): Promise<LegacySystemdUnit[]> {

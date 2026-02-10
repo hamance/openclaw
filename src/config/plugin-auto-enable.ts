@@ -33,7 +33,10 @@ const PROVIDER_PLUGIN_IDS: Array<{ pluginId: string; providerId: string }> = [
   { pluginId: "google-gemini-cli-auth", providerId: "google-gemini-cli" },
   { pluginId: "qwen-portal-auth", providerId: "qwen-portal" },
   { pluginId: "copilot-proxy", providerId: "copilot-proxy" },
-  { pluginId: "minimax-portal-auth", providerId: "minimax-portal" },
+    { pluginId: "minimax-portal-auth", providerId: "minimax-portal" },
+    { pluginId: "alibaba-cloud-auth", providerId: "alibaba-cloud" },
+  { pluginId: "alibaba-cloud-international-auth", providerId: "alibaba-cloud-international" },
+  { pluginId: "alibaba-cloud-us-auth", providerId: "alibaba-cloud-us" },
 ];
 
 function isRecord(value: unknown): value is Record<string, unknown> {

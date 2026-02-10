@@ -203,3 +203,39 @@ export async function setOpencodeZenApiKey(key: string, agentDir?: string) {
     agentDir: resolveAuthAgentDir(agentDir),
   });
 }
+
+export async function setAlibabaCloudApiKey(key: string, agentDir?: string) {
+  upsertAuthProfile({
+    profileId: "alibaba-cloud:default",
+    credential: {
+      type: "api_key",
+      provider: "alibaba-cloud",
+      key,
+    },
+    agentDir: resolveAuthAgentDir(agentDir),
+  });
+}
+
+export async function setAlibabaCloudInternationalApiKey(key: string, agentDir?: string) {
+  upsertAuthProfile({
+    profileId: "alibaba-cloud-international:default",
+    credential: {
+      type: "api_key",
+      provider: "alibaba-cloud-international",
+      key,
+    },
+    agentDir: resolveAuthAgentDir(agentDir),
+  });
+}
+
+export async function setAlibabaCloudUsApiKey(key: string, agentDir?: string) {
+  upsertAuthProfile({
+    profileId: "alibaba-cloud-us:default",
+    credential: {
+      type: "api_key",
+      provider: "alibaba-cloud-us",
+      key,
+    },
+    agentDir: resolveAuthAgentDir(agentDir),
+  });
+}

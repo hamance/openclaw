@@ -6,6 +6,8 @@ import { enqueueCommandInLane } from "../../process/command-queue.js";
 import { resolveUserPath } from "../../utils.js";
 import { isMarkdownCapableMessageChannel } from "../../utils/message-channel.js";
 import { resolveOpenClawAgentDir } from "../agent-paths.js";
+import { coerceImageModelConfig } from "../tools/image-tool.helpers.js";
+import { parseModelRef } from "../model-selection.js";
 import {
   isProfileInCooldown,
   markAuthProfileFailure,
@@ -93,14 +95,16 @@ export async function runEmbeddedPiAgent(
       const resolvedWorkspace = resolveUserPath(params.workspaceDir);
       const prevCwd = process.cwd();
 
-      const provider = (params.provider ?? DEFAULT_PROVIDER).trim() || DEFAULT_PROVIDER;
-      const modelId = (params.model ?? DEFAULT_MODEL).trim() || DEFAULT_MODEL;
+      let provider = (params.provider ?? DEFAULT_PROVIDER).trim() || DEFAULT_PROVIDER;
+      let modelId = (params.model ?? DEFAULT_MODEL).trim() || DEFAULT_MODEL;
       const agentDir = params.agentDir ?? resolveOpenClawAgentDir();
       const fallbackConfigured =
         (params.config?.agents?.defaults?.model?.fallbacks?.length ?? 0) > 0;
       await ensureOpenClawModelsJson(params.config, agentDir);
 
-      const { model, error, authStorage, modelRegistry } = resolveModel(
+      // Check if we need to auto-switch to imageModel
+      const hasImages = (params.images?.length ?? 0) > 0;
+      let { model, error, authStorage, modelRegistry } = resolveModel(
         provider,
         modelId,
         agentDir,
@@ -108,6 +112,44 @@ export async function runEmbeddedPiAgent(
       );
       if (!model) {
         throw new Error(error ?? `Unknown model: ${provider}/${modelId}`);
+      }
+
+      // Auto-switch to imageModel if:
+      // 1. User provided images
+      // 2. Primary model doesn't support images
+      // 3. ImageModel is configured
+      const primarySupportsImages = model.input?.includes("image") ?? false;
+      if (hasImages && !primarySupportsImages) {
+        const imageModelConfig = coerceImageModelConfig(params.config);
+        const imageModelRef = imageModelConfig.primary;
+        if (imageModelRef?.trim()) {
+          const parsed = parseModelRef(imageModelRef, DEFAULT_PROVIDER);
+          if (parsed) {
+            log.info(
+              `Auto-switching to imageModel: ${parsed.provider}/${parsed.model} (primary model ${provider}/${modelId} doesn't support images)`,
+            );
+            provider = parsed.provider;
+            modelId = parsed.model;
+            const imageModelResolved = resolveModel(
+              provider,
+              modelId,
+              agentDir,
+              params.config,
+            );
+            if (imageModelResolved.model) {
+              model = imageModelResolved.model;
+              authStorage = imageModelResolved.authStorage;
+              modelRegistry = imageModelResolved.modelRegistry;
+            } else {
+              log.warn(
+                `Failed to resolve imageModel ${provider}/${modelId}, falling back to primary model`,
+              );
+              // Revert to original
+              provider = (params.provider ?? DEFAULT_PROVIDER).trim() || DEFAULT_PROVIDER;
+              modelId = (params.model ?? DEFAULT_MODEL).trim() || DEFAULT_MODEL;
+            }
+          }
+        }
       }
 
       const ctxInfo = resolveContextWindowInfo({

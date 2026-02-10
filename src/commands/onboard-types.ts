@@ -35,6 +35,9 @@ export type AuthChoice =
   | "github-copilot"
   | "copilot-proxy"
   | "qwen-portal"
+  | "alibaba-cloud-api-key"
+  | "alibaba-cloud-international-api-key"
+  | "alibaba-cloud-us-api-key"
   | "skip";
 export type GatewayAuthChoice = "token" | "password";
 export type ResetScope = "config" | "config+creds+sessions" | "full";

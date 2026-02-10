@@ -264,6 +264,96 @@ export function normalizeProviders(params: {
   return mutated ? next : providers;
 }
 
+function getAlibabaCloudBaseUrl(
+  apiKey: string,
+  region: "domestic" | "international" | "us",
+): string {
+  if (apiKey.startsWith("sk-sp-")) {
+    // Use new URLs for sk-sp- prefixed keys
+    switch (region) {
+      case "international":
+        return "https://coding-intl.dashscope.aliyuncs.com/v1";
+      case "us":
+        return "https://coding-intl.dashscope.aliyuncs.com/v1";
+      default:
+        return "https://coding.dashscope.aliyuncs.com/v1";
+    }
+  } else {
+    // Use original URLs for non-sk-sp- prefixed keys
+    switch (region) {
+      case "international":
+        return "https://dashscope-intl.aliyuncs.com/compatible-mode/v1";
+      case "us":
+        return "https://dashscope-us.aliyuncs.com/compatible-mode/v1";
+      default:
+        return "https://dashscope.aliyuncs.com/compatible-mode/v1";
+    }
+  }
+}
+
+async function discoverAlibabaCloudModels(
+  baseUrl: string,
+  apiKey: string,
+): Promise<ModelDefinitionConfig[]> {
+  try {
+    const response = await fetch(`${baseUrl}/models`, {
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        "Content-Type": "application/json",
+      },
+      signal: AbortSignal.timeout(10000), // 10 second timeout
+    });
+
+    if (!response.ok) {
+      console.warn(
+        `Failed to discover Alibaba Cloud models: ${response.status} ${response.statusText}`,
+      );
+      return [];
+    }
+
+    const data = await response.json();
+
+    // Check if response has the expected structure (could be {data: [...]} or just [...])
+    const modelsData = Array.isArray(data) ? data : data.data || data.models || [];
+
+    if (!Array.isArray(modelsData) || modelsData.length === 0) {
+      console.warn("No Alibaba Cloud models found or unexpected response format");
+      return [];
+    }
+
+    return modelsData.map((model: any) => {
+      // Extract model information based on typical Alibaba Cloud API response
+      const modelId =
+        typeof model === "string" ? model : model.id || model.model || model.name || "unknown";
+      const modelName = typeof model === "object" && model.name ? model.name : modelId;
+
+      // Determine if the model supports vision based on name or capabilities
+      const supportsVision =
+        modelId.toLowerCase().includes("vision") ||
+        modelId.toLowerCase().includes("vl") ||
+        (model.capabilities && model.capabilities.includes("vision"));
+
+      return {
+        id: modelId,
+        name: modelName,
+        reasoning: modelId.toLowerCase().includes("reasoning"),
+        input: supportsVision ? ["text", "image"] : ["text"],
+        cost: {
+          input: 0.5, // Default pricing for Alibaba Cloud Qwen models (approximate)
+          output: 1.0,
+          cacheRead: 0.1,
+          cacheWrite: 0.2,
+        },
+        contextWindow: 32768, // Typical for modern models, can be overridden
+        maxTokens: 8192, // Typical for modern models, can be overridden
+      };
+    });
+  } catch (error) {
+    console.warn(`Failed to discover Alibaba Cloud models: ${String(error)}`);
+    return [];
+  }
+}
+
 function buildMinimaxProvider(): ProviderConfig {
   return {
     baseUrl: MINIMAX_API_BASE_URL,
@@ -450,6 +540,60 @@ export async function resolveImplicitProviders(params: {
     };
   }
 
+  // Alibaba Cloud providers - check for API keys and build with dynamic model discovery
+  const alibabaCloudKey =
+    resolveEnvApiKeyVarName("alibaba-cloud") ??
+    resolveApiKeyFromProfiles({ provider: "alibaba-cloud", store: authStore });
+  if (alibabaCloudKey) {
+    const baseUrl = getAlibabaCloudBaseUrl(alibabaCloudKey, "domestic");
+    const alibabaModels = await discoverAlibabaCloudModels(baseUrl, alibabaCloudKey);
+
+    // Always include qwen3-max model regardless of discovery results
+    const modelsWithQwen3Max = [
+      ...alibabaModels.map((model) => ({
+        ...model,
+        // Add compat settings to enable extra_body parameters like enable_search
+        compat: {
+          ...model.compat,
+        },
+      })),
+      ...aliCloudFallbackModels,
+    ];
+
+    providers["alibaba-cloud"] = {
+      baseUrl: baseUrl,
+      api: "openai-completions",
+      models: [...modelsWithQwen3Max],
+      apiKey: alibabaCloudKey,
+    };
+  }
+
+  const alibabaCloudInternationalKey =
+    resolveEnvApiKeyVarName("alibaba-cloud-international") ??
+    resolveApiKeyFromProfiles({ provider: "alibaba-cloud-international", store: authStore });
+  if (alibabaCloudInternationalKey) {
+    const baseUrl = getAlibabaCloudBaseUrl(alibabaCloudInternationalKey, "international");
+    const alibabaIntlModels = await discoverAlibabaCloudModels(
+      baseUrl,
+      alibabaCloudInternationalKey,
+    );
+    providers["alibaba-cloud-international"] = {
+      baseUrl: baseUrl,
+      api: "openai-completions",
+      models: [
+        ...alibabaIntlModels.map((model) => ({
+          ...model,
+          // Add compat settings to enable extra_body parameters like enable_search
+          compat: {
+            ...model.compat,
+          },
+        })),
+        ...aliCloudFallbackModels,
+      ],
+      apiKey: alibabaCloudInternationalKey,
+    };
+  }
+
   const xiaomiKey =
     resolveEnvApiKeyVarName("xiaomi") ??
     resolveApiKeyFromProfiles({ provider: "xiaomi", store: authStore });
@@ -484,6 +628,30 @@ export async function resolveImplicitProviders(params: {
     };
     break;
   }
+
+    // Alibaba Cloud US providers - check for API keys and build with dynamic model discovery
+    const alibabaCloudUSKey =
+        resolveEnvApiKeyVarName("alibaba-cloud-us") ??
+        resolveApiKeyFromProfiles({ provider: "alibaba-cloud-us", store: authStore });
+    if (alibabaCloudUSKey) {
+        const baseUrl = getAlibabaCloudBaseUrl(alibabaCloudUSKey, "us"); // Use "us" for US region
+        const alibabaUSModels = await discoverAlibabaCloudModels(baseUrl, alibabaCloudUSKey);
+        providers["alibaba-cloud-us"] = {
+            baseUrl: baseUrl,
+            api: "openai-completions",
+            models: [
+                ...alibabaUSModels.map((model) => ({
+                    ...model,
+                    // Add compat settings to enable extra_body parameters like enable_search
+                    compat: {
+                        ...model.compat,
+                    },
+                })),
+                ...aliCloudFallbackModels,
+            ],
+            apiKey: alibabaCloudUSKey,
+        };
+    }
 
   // Ollama provider - only add if explicitly configured
   const ollamaKey =
@@ -584,3 +752,174 @@ export async function resolveImplicitBedrockProvider(params: {
     models,
   } satisfies ProviderConfig;
 }
+
+const aliCloudFallbackModels: ModelDefinitionConfig[] = [
+  {
+    id: "qwen3-max",
+    name: "qwen3-max",
+    reasoning: false,
+    input: ["text"],
+    cost: {
+      input: 0,
+      output: 0,
+      cacheRead: 0,
+      cacheWrite: 0,
+    },
+    contextWindow: 262144,
+    maxTokens: 65536,
+  },
+  {
+    id: "qwen3-max-2026-01-23",
+    name: "qwen3-max-2026-01-23",
+    reasoning: false,
+    input: ["text"],
+    cost: {
+      input: 0,
+      output: 0,
+      cacheRead: 0,
+      cacheWrite: 0,
+    },
+    contextWindow: 262144,
+    maxTokens: 65536,
+  },
+  {
+    id: "qwen3-max-2025-09-23",
+    name: "qwen3-max-2025-09-23",
+    reasoning: false,
+    input: ["text"],
+    cost: {
+      input: 0,
+      output: 0,
+      cacheRead: 0,
+      cacheWrite: 0,
+    },
+    contextWindow: 262144,
+    maxTokens: 65536,
+  },
+  {
+    id: "qwen3-max-preview",
+    name: "qwen3-max-preview",
+    reasoning: false,
+    input: ["text"],
+    cost: {
+      input: 0,
+      output: 0,
+      cacheRead: 0,
+      cacheWrite: 0,
+    },
+    contextWindow: 262144,
+    maxTokens: 65536,
+  },
+  {
+    id: "qwen-plus",
+    name: "qwen-plus",
+    reasoning: false,
+    input: ["text"],
+    cost: {
+      input: 0,
+      output: 0,
+      cacheRead: 0,
+      cacheWrite: 0,
+    },
+    contextWindow: 1000000,
+    maxTokens: 32768,
+  },
+  {
+    id: "qwen-flash",
+    name: "qwen-flash",
+    reasoning: false,
+    input: ["text"],
+    cost: {
+      input: 0,
+      output: 0,
+      cacheRead: 0,
+      cacheWrite: 0,
+    },
+    contextWindow: 1000000,
+    maxTokens: 32768,
+  },
+  {
+    id: "qwen3-omni-flash",
+    name: "qwen3-omni-flash",
+    reasoning: false,
+    input: ["text", "image"],
+    cost: {
+      input: 0,
+      output: 0,
+      cacheRead: 0,
+      cacheWrite: 0,
+    },
+    contextWindow: 65536,
+    maxTokens: 16384,
+  },
+  {
+    id: "qwen3-vl-plus",
+    name: "qwen3-vl-plus",
+    reasoning: false,
+    input: ["text", "image"],
+    cost: {
+      input: 0,
+      output: 0,
+      cacheRead: 0,
+      cacheWrite: 0,
+    },
+    contextWindow: 262144,
+    maxTokens: 32768,
+  },
+  {
+    id: "qwen3-coder-plus",
+    name: "qwen3-vl-plus",
+    reasoning: false,
+    input: ["text"],
+    cost: {
+      input: 0,
+      output: 0,
+      cacheRead: 0,
+      cacheWrite: 0,
+    },
+    contextWindow: 1000000,
+    maxTokens: 65536,
+  },
+  {
+    id: "qwen-plus-us",
+    name: "qwen-plus-us",
+    reasoning: false,
+    input: ["text"],
+    cost: {
+      input: 0,
+      output: 0,
+      cacheRead: 0,
+      cacheWrite: 0,
+    },
+    contextWindow: 1000000,
+    maxTokens: 32768,
+  },
+  {
+    id: "qwen-flash-us",
+    name: "qwen-flash-us",
+    reasoning: false,
+    input: ["text"],
+    cost: {
+      input: 0,
+      output: 0,
+      cacheRead: 0,
+      cacheWrite: 0,
+    },
+    contextWindow: 1000000,
+    maxTokens: 32768,
+  },
+  {
+    id: "qwen3-vl-flash-us",
+    name: "qwen3-vl-flash-us",
+    reasoning: false,
+    input: ["text", "image"],
+    cost: {
+      input: 0,
+      output: 0,
+      cacheRead: 0,
+      cacheWrite: 0,
+    },
+    contextWindow: 1000000,
+    maxTokens: 32768,
+  },
+];

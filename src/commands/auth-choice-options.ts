@@ -22,7 +22,10 @@ export type AuthChoiceGroupId =
   | "minimax"
   | "synthetic"
   | "venice"
-  | "qwen";
+  | "qwen"
+  | "alibaba-cloud"
+  | "alibaba-cloud-international"
+  | "alibaba-cloud-us";
 
 export type AuthChoiceGroup = {
   value: AuthChoiceGroupId;
@@ -37,6 +40,24 @@ const AUTH_CHOICE_GROUP_DEFS: {
   hint?: string;
   choices: AuthChoice[];
 }[] = [
+  {
+    value: "alibaba-cloud",
+    label: "Alibaba Cloud",
+    hint: "API key",
+    choices: ["alibaba-cloud-api-key"],
+  },
+  {
+    value: "alibaba-cloud-international",
+    label: "Alibaba Cloud International",
+    hint: "API key",
+    choices: ["alibaba-cloud-international-api-key"],
+  },
+  {
+    value: "alibaba-cloud-us",
+    label: "Alibaba Cloud US",
+    hint: "API key",
+    choices: ["alibaba-cloud-us-api-key"],
+  },
   {
     value: "openai",
     label: "OpenAI",
@@ -200,6 +221,15 @@ export function buildAuthChoiceOptions(params: {
     hint: "Oauth plugin for MiniMax",
   });
   options.push({ value: "qwen-portal", label: "Qwen OAuth" });
+  options.push({ value: "alibaba-cloud-api-key", label: "Alibaba Cloud API key" });
+  options.push({
+    value: "alibaba-cloud-international-api-key",
+    label: "Alibaba Cloud International API key",
+  });
+  options.push({
+    value: "alibaba-cloud-us-api-key",
+    label: "Alibaba Cloud US API key",
+  });
   options.push({
     value: "copilot-proxy",
     label: "Copilot Proxy (local)",

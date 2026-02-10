@@ -42,6 +42,9 @@ import {
   VENICE_DEFAULT_MODEL_REF,
   VERCEL_AI_GATEWAY_DEFAULT_MODEL_REF,
   XIAOMI_DEFAULT_MODEL_REF,
+    setAlibabaCloudApiKey,
+    setAlibabaCloudInternationalApiKey,
+    setAlibabaCloudUsApiKey,
   setCloudflareAiGatewayConfig,
   setGeminiApiKey,
   setKimiCodingApiKey,
@@ -104,6 +107,12 @@ export async function applyAuthChoiceApiProviders(
       authChoice = "venice-api-key";
     } else if (params.opts.tokenProvider === "opencode") {
       authChoice = "opencode-zen";
+    } else if (params.opts.tokenProvider === "alibaba-cloud") {
+      authChoice = "alibaba-cloud-api-key";
+    } else if (params.opts.tokenProvider === "alibaba-cloud-international") {
+      authChoice = "alibaba-cloud-international-api-key";
+    } else if (params.opts.tokenProvider === "alibaba-cloud-us") {
+      authChoice = "alibaba-cloud-us-api-key";
     }
   }
 
@@ -794,6 +803,118 @@ export async function applyAuthChoiceApiProviders(
       nextConfig = applied.config;
       agentModelOverride = applied.agentModelOverride ?? agentModelOverride;
     }
+    return { config: nextConfig, agentModelOverride };
+  }
+
+  if (authChoice === "alibaba-cloud-api-key") {
+    let hasCredential = false;
+
+    if (!hasCredential && params.opts?.token && params.opts?.tokenProvider === "alibaba-cloud") {
+      await setAlibabaCloudApiKey(normalizeApiKeyInput(params.opts.token), params.agentDir);
+      hasCredential = true;
+    }
+
+    const envKey = resolveEnvApiKey("alibaba-cloud");
+    if (envKey) {
+      const useExisting = await params.prompter.confirm({
+        message: `Use existing ALIBABA_CLOUD_API_KEY (${envKey.source}, ${formatApiKeyPreview(envKey.apiKey)})?`,
+        initialValue: true,
+      });
+      if (useExisting) {
+        await setAlibabaCloudApiKey(envKey.apiKey, params.agentDir);
+        hasCredential = true;
+      }
+    }
+    if (!hasCredential) {
+      const key = await params.prompter.text({
+        message: "Enter Alibaba Cloud API key",
+        validate: validateApiKeyInput,
+      });
+      await setAlibabaCloudApiKey(normalizeApiKeyInput(String(key)), params.agentDir);
+    }
+    nextConfig = applyAuthProfileConfig(nextConfig, {
+      profileId: "alibaba-cloud:default",
+      provider: "alibaba-cloud",
+      mode: "api_key",
+    });
+
+    return { config: nextConfig, agentModelOverride };
+  }
+
+  if (authChoice === "alibaba-cloud-international-api-key") {
+    let hasCredential = false;
+
+    if (
+      !hasCredential &&
+      params.opts?.token &&
+      params.opts?.tokenProvider === "alibaba-cloud-international"
+    ) {
+      await setAlibabaCloudInternationalApiKey(
+        normalizeApiKeyInput(params.opts.token),
+        params.agentDir,
+      );
+      hasCredential = true;
+    }
+
+    const envKey = resolveEnvApiKey("alibaba-cloud-international");
+    if (envKey) {
+      const useExisting = await params.prompter.confirm({
+        message: `Use existing ALIBABA_CLOUD_INTERNATIONAL_API_KEY (${envKey.source}, ${formatApiKeyPreview(envKey.apiKey)})?`,
+        initialValue: true,
+      });
+      if (useExisting) {
+        await setAlibabaCloudInternationalApiKey(envKey.apiKey, params.agentDir);
+        hasCredential = true;
+      }
+    }
+    if (!hasCredential) {
+      const key = await params.prompter.text({
+        message: "Enter Alibaba Cloud International API key",
+        validate: validateApiKeyInput,
+      });
+      await setAlibabaCloudInternationalApiKey(normalizeApiKeyInput(String(key)), params.agentDir);
+    }
+    nextConfig = applyAuthProfileConfig(nextConfig, {
+      profileId: "alibaba-cloud-international:default",
+      provider: "alibaba-cloud-international",
+      mode: "api_key",
+    });
+
+    return { config: nextConfig, agentModelOverride };
+  }
+
+  if (authChoice === "alibaba-cloud-us-api-key") {
+    let hasCredential = false;
+
+    if (!hasCredential && params.opts?.token && params.opts?.tokenProvider === "alibaba-cloud-us") {
+      await setAlibabaCloudUsApiKey(normalizeApiKeyInput(params.opts.token), params.agentDir);
+      hasCredential = true;
+    }
+
+    const envKey = resolveEnvApiKey("alibaba-cloud-us");
+    if (envKey) {
+      const useExisting = await params.prompter.confirm({
+        message: `Use existing ALIBABA_CLOUD_US_API_KEY (${envKey.source}, ${formatApiKeyPreview(envKey.apiKey)})?`,
+        initialValue: true,
+      });
+      if (useExisting) {
+        await setAlibabaCloudUsApiKey(envKey.apiKey, params.agentDir);
+        hasCredential = true;
+      }
+    }
+    if (!hasCredential) {
+      const key = await params.prompter.text({
+        message: "Enter Alibaba Cloud US API key",
+        validate: validateApiKeyInput,
+      });
+      await setAlibabaCloudUsApiKey(normalizeApiKeyInput(String(key)), params.agentDir);
+    }
+    nextConfig = applyAuthProfileConfig(nextConfig, {
+      profileId: "alibaba-cloud-us:default",
+      provider: "alibaba-cloud-us",
+      mode: "api_key",
+    });
+
     return { config: nextConfig, agentModelOverride };
   }
 

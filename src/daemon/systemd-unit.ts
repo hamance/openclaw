@@ -10,22 +10,22 @@ function renderEnvLines(env: Record<string, string | undefined> | undefined): st
     return [];
   }
   const entries = Object.entries(env).filter(
-    ([, value]) => typeof value === "string" && value.trim(),
+      ([, value]) => typeof value === "string" && value.trim(),
   );
   if (entries.length === 0) {
     return [];
   }
   return entries.map(
-    ([key, value]) => `Environment=${systemdEscapeArg(`${key}=${value?.trim() ?? ""}`)}`,
+      ([key, value]) => `Environment=${systemdEscapeArg(`${key}=${value?.trim() ?? ""}`)}`,
   );
 }
 
 export function buildSystemdUnit({
-  description,
-  programArguments,
-  workingDirectory,
-  environment,
-}: {
+                                   description,
+                                   programArguments,
+                                   workingDirectory,
+                                   environment,
+                                 }: {
   description?: string;
   programArguments: string[];
   workingDirectory?: string;
@@ -34,8 +34,8 @@ export function buildSystemdUnit({
   const execStart = programArguments.map(systemdEscapeArg).join(" ");
   const descriptionLine = `Description=${description?.trim() || "OpenClaw Gateway"}`;
   const workingDirLine = workingDirectory
-    ? `WorkingDirectory=${systemdEscapeArg(workingDirectory)}`
-    : null;
+      ? `WorkingDirectory=${systemdEscapeArg(workingDirectory)}`
+      : null;
   const envLines = renderEnvLines(environment);
   return [
     "[Unit]",
@@ -58,8 +58,8 @@ export function buildSystemdUnit({
     "WantedBy=default.target",
     "",
   ]
-    .filter((line) => line !== null)
-    .join("\n");
+      .filter((line) => line !== null)
+      .join("\n");
 }
 
 export function parseSystemdExecStart(value: string): string[] {
